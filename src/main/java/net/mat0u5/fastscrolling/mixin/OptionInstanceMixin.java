@@ -26,7 +26,7 @@ public class OptionInstanceMixin {
 		if (thisInstance != options.mouseWheelSensitivity()) return;
 
 		int multiplier = 1;
-		//? if <= 1.21.5 {
+		//? if <= 1.21.6 {
 		/*boolean controlDown = Screen.hasControlDown();
 		boolean shiftDown = Screen.hasShiftDown();
 		*///?} else {

@@ -15,9 +15,18 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @MixinEnvironment(type = MixinEnvironment.Env.CLIENT)
 public class VideoSettingsScreenMixin {
 	//? if >= 1.20 {
+
+	//? if <= 1.21.6 {
+	/*@Redirect(method = "mouseScrolled", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;hasControlDown()Z"))
+	private boolean stopGuiScaleChange() {
+		return false;
+	}
+	*///?} else {
 	@Redirect(method = "mouseScrolled", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;hasControlDown()Z"))
 	private boolean stopGuiScaleChange(Minecraft instance) {
 		return false;
 	}
+	//?}
+
 	//?}
 }
