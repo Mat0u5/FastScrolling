@@ -58,7 +58,6 @@ stonecutter {
 		match("1.20", "fabric", "forge")
 
 		match("1.19", "fabric", "forge")
-		match("1.18", "fabric")
 
 		vcsVersion = "26.1-fabric"
 	}

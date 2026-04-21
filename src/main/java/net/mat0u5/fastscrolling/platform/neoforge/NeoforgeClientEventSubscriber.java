@@ -20,9 +20,5 @@ import net.neoforged.fml.common.EventBusSubscriber;
 @EventBusSubscriber(modid = Main.MOD_ID, value = Dist.CLIENT)
 //?}
 public class NeoforgeClientEventSubscriber {
-	@SubscribeEvent
-	public static void onClientSetup(final FMLClientSetupEvent event) {
-		Main.onInitializeClient();
-	}
 }
 *///?}

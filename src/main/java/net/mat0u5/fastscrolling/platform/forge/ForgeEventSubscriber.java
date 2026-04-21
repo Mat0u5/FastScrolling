@@ -3,7 +3,6 @@ package net.mat0u5.fastscrolling.platform.forge;
 //? forge {
 
 /*import net.mat0u5.fastscrolling.Main;
-import net.mat0u5.fastscrolling.event.ExampleEventHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 //? if <= 1.21.5 {

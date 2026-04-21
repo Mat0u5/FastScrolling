@@ -15,9 +15,5 @@ import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 @Mod.EventBusSubscriber(modid = Main.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class ForgeClientEventSubscriber {
 
-	@SubscribeEvent
-	public static void onClientSetup(final FMLClientSetupEvent event) {
-		Main.onInitializeClient();
-	}
 }
 *///?}
