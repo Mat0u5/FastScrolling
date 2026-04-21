@@ -23,13 +23,11 @@ public class Main {
 	private static final Platform PLATFORM = createPlatformInstance();
 
 	public static void onInitialize() {
-		LOGGER.info("Initializing {} on {}", MOD_ID, platform().loader());
-		//LOGGER.info("{}: { version: {}; friendly_name: {} }", MOD_ID, MOD_VERSION, MOD_FRIENDLY_NAME);
+		LOGGER.info("Initializing {} on {}", MOD_FRIENDLY_NAME, platform().loader());
 	}
 
 	public static void onInitializeClient() {
-		LOGGER.info("Initializing {} Client on {}", MOD_ID, platform().loader());
-		//LOGGER.info("{}: { version: {}; friendly_name: {} }", MOD_ID, MOD_VERSION, MOD_FRIENDLY_NAME);
+		LOGGER.info("Initializing {} Client on {}", MOD_FRIENDLY_NAME, platform().loader());
 	}
 
 	static Platform platform() {
