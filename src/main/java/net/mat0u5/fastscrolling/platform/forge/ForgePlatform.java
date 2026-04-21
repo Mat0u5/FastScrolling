@@ -1,8 +1,8 @@
-package net.mat0u5.modid.platform.forge;
+package net.mat0u5.fastscrolling.platform.forge;
 
 //? forge {
 
-/*import net.mat0u5.modid.platform.Platform;
+/*import net.mat0u5.fastscrolling.platform.Platform;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLLoader;
 

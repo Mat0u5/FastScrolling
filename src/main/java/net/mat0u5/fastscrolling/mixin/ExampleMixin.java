@@ -1,6 +1,6 @@
-package net.mat0u5.modid.mixin;
+package net.mat0u5.fastscrolling.mixin;
 
-import net.mat0u5.modid.Main;
+import net.mat0u5.fastscrolling.Main;
 import dev.kikugie.fletching_table.annotation.MixinEnvironment;
 import net.minecraft.server.MinecraftServer;
 import org.spongepowered.asm.mixin.Mixin;

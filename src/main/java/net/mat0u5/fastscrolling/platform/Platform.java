@@ -1,4 +1,4 @@
-package net.mat0u5.modid.platform;
+package net.mat0u5.fastscrolling.platform;
 
 public interface Platform {
 	boolean isModLoaded(String modId);

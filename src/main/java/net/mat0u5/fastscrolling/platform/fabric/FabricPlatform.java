@@ -1,8 +1,8 @@
-package net.mat0u5.modid.platform.fabric;
+package net.mat0u5.fastscrolling.platform.fabric;
 
 //? fabric {
 
-import net.mat0u5.modid.platform.Platform;
+import net.mat0u5.fastscrolling.platform.Platform;
 import net.fabricmc.loader.api.FabricLoader;
 
 public class FabricPlatform implements Platform {

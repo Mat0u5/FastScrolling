@@ -1,5 +1,5 @@
 {
-  "package": "net.mat0u5.modid.mixin",
+  "package": "net.mat0u5.fastscrolling.mixin",
   "required": true,
   "minVersion": "0.8",
   "refmap": "${id}.mixins.refmap.json",

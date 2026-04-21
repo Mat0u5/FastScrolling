@@ -1,9 +1,9 @@
-package net.mat0u5.modid.platform.neoforge;
+package net.mat0u5.fastscrolling.platform.neoforge;
 
 //? neoforge {
 
-/*import net.mat0u5.modid.Main;
-import net.mat0u5.modid.event.ExampleEventHandler;
+/*import net.mat0u5.fastscrolling.Main;
+import net.mat0u5.fastscrolling.event.ExampleEventHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;

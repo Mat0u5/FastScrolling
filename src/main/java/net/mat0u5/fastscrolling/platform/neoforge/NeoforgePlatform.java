@@ -1,8 +1,8 @@
-package net.mat0u5.modid.platform.neoforge;
+package net.mat0u5.fastscrolling.platform.neoforge;
 
 //? neoforge {
 
-/*import net.mat0u5.modid.platform.Platform;
+/*import net.mat0u5.fastscrolling.platform.Platform;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.VersionInfo;

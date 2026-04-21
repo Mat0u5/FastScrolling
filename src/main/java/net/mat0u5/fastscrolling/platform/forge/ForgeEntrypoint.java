@@ -1,8 +1,8 @@
-package net.mat0u5.modid.platform.forge;
+package net.mat0u5.fastscrolling.platform.forge;
 
 //? forge {
 
-/*import net.mat0u5.modid.Main;
+/*import net.mat0u5.fastscrolling.Main;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod(Main.MOD_ID)

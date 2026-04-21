@@ -1,8 +1,8 @@
-package net.mat0u5.modid.platform.fabric;
+package net.mat0u5.fastscrolling.platform.fabric;
 
 //? fabric {
 
-import net.mat0u5.modid.event.ExampleEventHandler;
+import net.mat0u5.fastscrolling.event.ExampleEventHandler;
 import net.fabricmc.fabric.api.entity.event.v1.*;
 import net.minecraft.server.level.ServerPlayer;
 

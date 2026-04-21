@@ -1,6 +1,6 @@
-package net.mat0u5.modid.event;
+package net.mat0u5.fastscrolling.event;
 
-import net.mat0u5.modid.Main;
+import net.mat0u5.fastscrolling.Main;
 import net.minecraft.server.level.ServerPlayer;
 
 public class ExampleEventHandler {
