@@ -23,17 +23,23 @@ for (version in stonecutter.versions.map { it.version }.distinct()) tasks.regist
 	dependsOn(stonecutter.tasks.named("publishMods") { metadata.version == version })
 }
 
-stonecutter tasks {
-	val ordering = versionComparator.thenComparingInt { task ->
-		if (task.metadata.project.contains("fabric")) 2 else if (task.metadata.project.contains("neoforge")) 1 else 0
-	}
-
-	listOf("publishModrinth", "publishCurseforge").forEach { taskName ->
-		gradle.allprojects {
-			if (project.tasks.findByName(taskName) != null) {
-				order(taskName, ordering)
+stonecutter {
+	tasks {
+		val loaderOrdering = versionComparator.thenComparingInt { node: ProjectNode ->
+			val name = node.metadata.project
+			when {
+				"fabric" in name -> 2
+				"neoforge" in name -> 1
+				else -> 0 // forge
 			}
 		}
+
+		val isPlatformFilter: ProjectNode.() -> Boolean = {
+			project.hasProperty("isPublishing")
+		}
+
+		order("publishModrinth", loaderOrdering, isPlatformFilter)
+		order("publishCurseforge", loaderOrdering, isPlatformFilter)
 	}
 }
 
