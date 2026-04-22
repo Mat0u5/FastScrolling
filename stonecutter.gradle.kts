@@ -23,23 +23,39 @@ for (version in stonecutter.versions.map { it.version }.distinct()) tasks.regist
 	dependsOn(stonecutter.tasks.named("publishMods") { metadata.version == version })
 }
 
-stonecutter {
-	tasks {
-		val loaderOrdering = versionComparator.thenComparingInt { node: ProjectNode ->
-			val name = node.metadata.project
-			when {
-				"fabric" in name -> 2
-				"neoforge" in name -> 1
-				else -> 0 // forge
+gradle.projectsEvaluated {
+	val versionOrder = stonecutter.versions.map { it.version }.distinct().reversed()
+
+	listOf("publishModrinth", "publishCurseforge").forEach { taskName ->
+		val allTasks = subprojects.mapNotNull { it.tasks.findByName(taskName) }
+
+		val sorted = allTasks.sortedWith(compareBy(
+			{ task ->
+				val loader = task.project.name.substringAfterLast('-')
+				when {
+					"fabric" in loader -> 2
+					"neoforge" in loader -> 1
+					else -> 0
+				}
+			},
+			{ task ->
+				val version = task.project.name.substringBeforeLast('-')
+				versionOrder.indexOf(version).takeIf { it >= 0 } ?: Int.MAX_VALUE
+			}
+		))
+
+		for (i in 1 until sorted.size) {
+			sorted[i].dependsOn(sorted[i - 1])
+		}
+
+		sorted.forEach { task ->
+			val loader = task.project.name.substringAfterLast('-')
+			val delayMs = 2000L;
+			task.doFirst {
+				logger.lifecycle("\n>>> [WAITING] ${delayMs/1000}s before uploading ${task.project.name}...")
+				Thread.sleep(delayMs)
 			}
 		}
-
-		val isPlatformFilter: ProjectNode.() -> Boolean = {
-			project.hasProperty("isPublishing")
-		}
-
-		order("publishModrinth", loaderOrdering, isPlatformFilter)
-		order("publishCurseforge", loaderOrdering, isPlatformFilter)
 	}
 }
 
