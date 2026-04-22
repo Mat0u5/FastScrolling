@@ -1,3 +1,5 @@
+import dev.kikugie.stonecutter.data.tree.ProjectNode
+
 plugins {
 	alias(libs.plugins.stonecutter)
 	alias(libs.plugins.dotenv)
@@ -21,36 +23,15 @@ for (version in stonecutter.versions.map { it.version }.distinct()) tasks.regist
 	dependsOn(stonecutter.tasks.named("publishMods") { metadata.version == version })
 }
 
-gradle.taskGraph.whenReady {
-	val taskNames = listOf("publishModrinth", "publishCurseforge")
+stonecutter tasks {
+	val ordering = versionComparator.thenComparingInt { task ->
+		if (task.metadata.project.contains("fabric")) 2 else if (task.metadata.project.contains("neoforge")) 1 else 0
+	}
 
-	taskNames.forEach { targetName ->
-		val allTasksInBuild = allTasks.filter { it.name == targetName }
-
-		val sortedTasks = allTasksInBuild.sortedWith(
-			compareBy<Task> { task ->
-				val pName = task.project.name.lowercase()
-				when {
-					pName.contains("fabric") -> 2
-					pName.contains("neoforge") -> 1
-					else -> 0
-				}
-			}.thenBy { it.project.name }
-		)
-
-		for (i in 1 until sortedTasks.size) {
-			val previous = sortedTasks[i - 1]
-			val current = sortedTasks[i]
-
-			current.mustRunAfter(previous)
-		}
-
-		sortedTasks.forEachIndexed { index, task ->
-			if (index > 0) {
-				task.doFirst {
-					logger.lifecycle("\n>>> [WAITING] 10s delay: Uploading ${task.project.name} after ${sortedTasks[index-1].project.name}...")
-					Thread.sleep(10000)
-				}
+	listOf("publishModrinth", "publishCurseforge").forEach { taskName ->
+		gradle.allprojects {
+			if (project.tasks.findByName(taskName) != null) {
+				order(taskName, ordering)
 			}
 		}
 	}
