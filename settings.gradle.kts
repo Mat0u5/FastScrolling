@@ -130,27 +130,17 @@ stonecutter {
 		}
 		else {
 			// All versions
-			match("26.2", "fabric", "forge", "neoforge")
 			match("26.1", "fabric", "forge", "neoforge")
 
-			match("1.21.11", "fabric", "forge", "neoforge")
 			match("1.21.9", "fabric", "forge", "neoforge")
-			match("1.21.6", "fabric", "forge", "neoforge")
-			match("1.21.5", "fabric", "forge", "neoforge")
-			match("1.21.4", "fabric", "forge", "neoforge")
-			match("1.21.2", "fabric", "forge", "neoforge")
-			match("1.21", "fabric", "forge", "neoforge")
-
-			match("1.20.5", "fabric", "forge", "neoforge")
-			match("1.20.3", "fabric", "neoforge")
-			match("1.20.2", "fabric")
+			match("1.20.5", "forge")
+			match("1.20.3", "neoforge")
 			match("1.20", "fabric", "forge")
 
 			match("1.19", "fabric", "forge")
-			match("1.18", "fabric", "forge")
-			match("1.17", "fabric", "forge")
+			match("1.17", "forge")
 			match("1.16", "fabric", "forge")
-			match("1.15", "fabric", "forge")
+			match("1.15", "forge")
 			match("1.14", "fabric")
 		}
 
@@ -158,13 +148,13 @@ stonecutter {
 			vcsVersion = "1.18-fabric"
 		}
 		else if (env("GRADLE_ONLY_FORGE") == "true") {
-			vcsVersion = "26.2-forge"
+			vcsVersion = "26.1-forge"
 		}
 		else if (env("GRADLE_ONLY_NEOFORGE") == "true") {
-			vcsVersion = "26.2-neoforge"
+			vcsVersion = "26.1-neoforge"
 		}
 		else {
-			vcsVersion = "26.2-fabric"
+			vcsVersion = "26.1-fabric"
 		}
 	}
 }

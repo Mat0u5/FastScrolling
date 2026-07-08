@@ -1,5 +1,14 @@
 package net.mat0u5.fastscrolling.mixin;
-
+//? if < 1.20 {
+/*import dev.kikugie.fletching_table.annotation.MixinEnvironment;
+import net.minecraft.client.Minecraft;
+import org.spongepowered.asm.mixin.Mixin;
+@Mixin(Minecraft.class)
+@MixinEnvironment(type = MixinEnvironment.Env.CLIENT)
+public class VideoSettingsScreenMixin {
+	// Empty
+}
+*///?} else {
 import dev.kikugie.fletching_table.annotation.MixinEnvironment;
 import net.minecraft.client.Minecraft;
 //? if <= 1.20.6 {
@@ -14,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(VideoSettingsScreen.class)
 @MixinEnvironment(type = MixinEnvironment.Env.CLIENT)
 public class VideoSettingsScreenMixin {
-	//? if >= 1.20 {
 
 	//? if <= 1.21.6 {
 	/*@Redirect(method = "mouseScrolled", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/Screen;hasControlDown()Z"))
@@ -27,6 +35,5 @@ public class VideoSettingsScreenMixin {
 		return false;
 	}
 	//?}
-
-	//?}
 }
+//?}
