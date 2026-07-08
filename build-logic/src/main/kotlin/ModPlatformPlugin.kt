@@ -20,6 +20,7 @@ import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.plugins.ide.idea.model.IdeaModel
 import java.util.*
 import javax.inject.Inject
+import kotlin.apply
 
 fun Project.prop(name: String): String = (findProperty(name) ?: "") as String
 
@@ -50,7 +51,7 @@ fun RepositoryHandler.strictMaven(
 abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 	override fun apply(project: Project) = with(project) {
 		val inferredLoader = project.buildFile.name.substringAfter('.').replace(".gradle.kts", "")
-		val inferredLoaderIsFabric = inferredLoader == "fabric"
+		val inferredLoaderIsFabric = inferredLoader == "fabric-legacy"
 		val inferredLoaderIsForge = inferredLoader == "forge"
 
 		val extension = extensions.create("platform", ModPlatformExtension::class.java).apply {
@@ -83,21 +84,25 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 		val isForge = loader == "forge"
 
 		val modId = prop("mod.id")
-		val modVersion = prop("mod.version")
-		val modVersionPrefix = prop("mod.version_prefix")
-		val modVersionSuffix = prop("mod.version_suffix")
+		val originalModVersion = prop("mod.version_prefix")+prop("mod.version")+prop("mod.version_suffix")
+		var modVersion = prop("mod.version_prefix")+prop("mod.version")+prop("mod.version_suffix")
 		val mcVersion = prop("deps.minecraft")
-		val mcRange = prop("mod.mc_range").ifBlank { "[$mcVersion]" }
+		var mcRange = prop("mod.mc_range").ifBlank { "[$mcVersion]" }
+		if (env("BUILD_UNBOUND_VERSION_RANGE") == "true") {
+			mcRange = "*"
+		}
+		val isNoDowngraderTaskRequested = gradle.startParameter.taskNames.any {
+			it.contains("buildAndCollectNoDowngrader", ignoreCase = true)
+		}
 
 		val stonecutter = extensions.getByType<StonecutterBuildExtension>()
+		configureStonecutterReplacements(stonecutter)
 
 		listOf(
 			"java",
 			"me.modmuss50.mod-publish-plugin",
 			"idea",
 		).forEach { apply(plugin = it) }
-
-		version = "$modVersionPrefix$modVersion$modVersionSuffix+$mcVersion-$loader"
 
 		extension.requiredJava.set(
 			when {
@@ -108,6 +113,21 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 				else -> JavaVersion.VERSION_1_8
 			}
 		)
+
+		var compileJavaVersion = extension.requiredJava.get()
+		if (compileJavaVersion < JavaVersion.VERSION_17) {
+			compileJavaVersion = JavaVersion.VERSION_17
+			if (!isNoDowngraderTaskRequested) {
+				configureDowngrade(extension, compileJavaVersion)
+			}
+			else {
+				modVersion += "-nodowngrader"
+			}
+		}
+
+		val fullVersion = "$modVersion+$mcVersion-$loader"
+		val publishDisplayVersion = "$loader-$modVersion+$mcVersion"
+		version = fullVersion
 
 		extension.dependencies {
 			required.maybeCreate("minecraft").apply {
@@ -124,7 +144,7 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 
 				required.maybeCreate("fabricloader").apply {
 					modid.set("fabricloader")
-					versionRange.set(prop("mod.loader_range").ifBlank { "*" })
+					versionRange.set(">=0.12.0")
 				}
 			}
 		}
@@ -137,17 +157,65 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 			isNeoForge,
 			isForge,
 			modId,
-			"$modVersionPrefix$modVersion$modVersionSuffix",
+			modVersion,
 			mcVersion,
 			extension,
 			extension.requiredJava.get(),
 			stonecutter
 		)
-		configureJava(stonecutter, extension.requiredJava.get())
-		registerBuildAndCollectTask(extension, "$modVersionPrefix$modVersion$modVersionSuffix")
-		configurePublishing(extension, loader, stonecutter,
-			"$modVersionPrefix$modVersion$modVersionSuffix",
-			"$loader-$modVersionPrefix$modVersion$modVersionSuffix+$mcVersion")
+		configureJava(stonecutter, compileJavaVersion)
+		registerBuildAndCollectTask(extension, modVersion)
+		registerBuildAndCollectNoDowngraderTask(extension, originalModVersion)
+		configurePublishing(extension, loader, stonecutter, modVersion, publishDisplayVersion)
+	}
+
+	private fun Project.configureDowngrade(extension: ModPlatformExtension, compileJavaVersion: JavaVersion) {
+
+		val requiredTarget = extension.requiredJava.get()
+		val needsDowngrade = requiredTarget < compileJavaVersion
+
+		val pluginsToApply = mutableListOf(
+			"java",
+			"me.modmuss50.mod-publish-plugin",
+			"idea"
+		)
+
+		if (needsDowngrade) {
+			pluginsToApply.add("xyz.wagyourtail.jvmdowngrader")
+		}
+
+		pluginsToApply.forEach { apply(plugin = it) }
+
+		if (needsDowngrade) {
+			extensions.configure<Any>("jvmdg") {
+				withGroovyBuilder {
+					setProperty("downgradeTo", requiredTarget)
+				}
+			}
+
+			val originalTarget = extension.jarTask.get()
+
+			tasks.named("downgradeJar") {
+				val originalTask = tasks.named(originalTarget, org.gradle.jvm.tasks.Jar::class.java)
+				dependsOn(originalTask)
+				withGroovyBuilder {
+					setProperty("inputFile", originalTask.flatMap { it.archiveFile })
+					setProperty("destinationDirectory", layout.buildDirectory.dir("../build/devlibs"))
+				}
+			}
+
+			tasks.named("shadeDowngradedApi") {
+				withGroovyBuilder {
+					setProperty("archiveClassifier", "")
+				}
+			}
+
+			tasks.named("build") {
+				dependsOn("shadeDowngradedApi")
+			}
+
+			extension.jarTask.set("shadeDowngradedApi")
+		}
 	}
 
 	private fun Project.configureJarTask(modId: String, loader: String) {
@@ -179,7 +247,14 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 			dependsOn("kspKotlin")
 
 			filesMatching("*.mixins.json") {
-				val mixinJava = if (isForge) {
+				val needsRefmap = isForge && stonecutter.eval(stonecutter.current.version, "<=1.20") // legacyForge
+				if (!needsRefmap) {
+					filter { line: String ->
+						if (line.trimStart().startsWith("\"refmap\"")) null else line
+					}
+				}
+
+				val mixinJava = if (isForge && requiredJava > JavaVersion.VERSION_17) {
 					"JAVA_17"
 				} else {
 					"JAVA_${requiredJava.majorVersion}"
@@ -206,6 +281,7 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 			val props = mapOf(
 				"version" to modVersion,
 				"minecraft" to mcVersion,
+				"sc_version" to stonecutter.current.version,
 				"id" to modId,
 				"name" to prop("mod.name"),
 				"group" to prop("mod.group"),
@@ -235,16 +311,17 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 					val usesLegacyToml = stonecutter.eval(stonecutter.current.version, "<=1.20.3")
 					if (usesLegacyToml) {
 						filesMatching("META-INF/mods.toml") { expand(props) }
-						exclude("META-INF/neoforge.mods.toml", "fabric.mod.json", "aw/*.accesswidener", ".cache", "pack.mcmeta")
+						filesMatching("META-INF/neoforge.mods.toml") { expand(props) }
+						exclude("fabric.mod.json", "aw/*.accesswidener", "aw/*.classtweaker", ".cache", "pack.mcmeta")
 					} else {
 						filesMatching("META-INF/neoforge.mods.toml") { expand(props) }
-						exclude("META-INF/mods.toml", "fabric.mod.json", "aw/*.accesswidener", ".cache", "pack.mcmeta")
+						exclude("META-INF/mods.toml", "fabric.mod.json", "aw/*.accesswidener", "aw/*.classtweaker", ".cache", "pack.mcmeta")
 					}
 				}
 
 				isForge -> {
 					filesMatching("META-INF/mods.toml") { expand(props) }
-					exclude("META-INF/neoforge.mods.toml", "fabric.mod.json", "aw/*.accesswidener", ".cache")
+					exclude("META-INF/neoforge.mods.toml", "fabric.mod.json", "aw/*.accesswidener", "aw/*.classtweaker", ".cache")
 				}
 			}
 		}
@@ -316,7 +393,18 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 			from(
 				tasks.named(extension.jarTask.get())
 			)
-			into(rootProject.layout.buildDirectory.file("libs/$modVersion"))
+			into(rootProject.file("output/$modVersion"))
+			dependsOn("build")
+		}
+	}
+
+	private fun Project.registerBuildAndCollectNoDowngraderTask(extension: ModPlatformExtension, modVersion: String) {
+		tasks.register<Copy>("buildAndCollectNoDowngrader") {
+			group = "build"
+			from(
+				tasks.named(extension.jarTask.get())
+			)
+			into(rootProject.file("output/$modVersion-nodowngrader"))
 			dependsOn("build")
 		}
 	}
@@ -331,63 +419,66 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 		val additionalVersions = (findProperty("publish.additionalVersions") as String?)?.split(',')?.map(String::trim)
 			?.filter(String::isNotEmpty).orEmpty()
 
-		// Read release type from gradle.properties based on loader
-		val releaseTypeRaw = prop("release.$loader").ifBlank { "stable" }
+		val releaseTypeRaw = prop("publish.release.$loader").ifBlank { "stable" }
 		val releaseType = ReleaseType.of(
 			releaseTypeRaw.let { if (it == "dev") "beta" else it }
 		)
 
 		extensions.configure<ModPublishExtension>("publishMods") {
-			val mrStaging = envTrue("TEST_PUBLISHING_WITH_MR_STAGING")
+			//val mrStaging = prop("publish.modrinth.staging") == "true"
+			val mrStaging = false
 
 			val modrinthAccessToken = env("MODRINTH_API_TOKEN")
 			val curseforgeAccessToken = env("CURSEFORGE_API_TOKEN")
+			val githubAccessToken = env("GITHUB_TOKEN")
 
-			val modrinthProjectId = prop("publish.modrinth")
-			val curseforgeProjectId = prop("publish.curseforge")
+			val modrinthProjectId = prop("publish.modrinth.id")
+			val curseforgeProjectId = prop("publish.curseforge.id")
 
-			if (!envTrue("ENABLE_PUBLISHING")) {
+			val modrinthPublish = prop("publish.modrinth") == "true"
+			val curseforgePublish = prop("publish.curseforge") == "true"
+			val githubPublish = prop("publish.github") == "true"
+
+			if (prop("publish.dryrun") == "true") {
 				dryRun = true
 			}
 
-			val isForge = loader == "forge"
-			val targetName = if (isForge && stonecutter.eval(stonecutter.current.version, "<=1.20")) {
-				"reobfJar"
-			} else {
-				ext.jarTask.get()
-			}
-
+			val targetName = ext.jarTask.get()
 			val jarTask = tasks.named(targetName).map { it as Jar }
-			val currentVersion = stonecutter.current.version
+			val currentVersion = prop("deps.minecraft")
 			val deps = ext.dependencies
 
 			file.set(jarTask.flatMap(Jar::getArchiveFile))
 			type = releaseType
-			version = displayVersion
-			changelog.set(rootProject.file("CHANGELOG.md").readText())
+			if (displayVersion.length > 32) {
+				version = displayVersion.replace("snapshot", "snap").take(32)
+			}
+			val changelogFile = rootProject.file("CHANGELOG.md").readText()
+			changelog.set(changelogFile.replace("\n","\n\n"))
 			modLoaders.add(loader)
 			if (loader == "fabric") {
 				modLoaders.add("quilt")
 			}
-			if (loader == "forge" && currentVersion == "1.20" && additionalVersions.size <= 1) {
+			if (loader == "forge" && stonecutter.current.version == "1.20" && additionalVersions.size <= 1) {
 				modLoaders.add("neoforge")
 			}
 
 			val mcVersionRange = if (additionalVersions.isNotEmpty()) "$currentVersion-${additionalVersions.last()}" else currentVersion
 			displayName = "${prop("mod.name")} $modVersion for ${loader.replaceFirstChar(Char::titlecase)} $mcVersionRange"
 
-			// Check if Modrinth should be published
-			if (!modrinthAccessToken.isNullOrBlank() && modrinthProjectId.isNotBlank()) {
+			if (modrinthPublish && !modrinthAccessToken.isNullOrBlank() && modrinthProjectId.isNotBlank()) {
 				modrinth(deps, currentVersion, additionalVersions, mrStaging, modrinthAccessToken)
-			} else {
-				//logger.lifecycle("Skipping Modrinth publishing for $name: Token or Project ID is missing.")
 			}
 
-			// Check if CurseForge should be published
-			if (!curseforgeAccessToken.isNullOrBlank() && curseforgeProjectId.isNotBlank()) {
+			if (curseforgePublish && !curseforgeAccessToken.isNullOrBlank() && curseforgeProjectId.isNotBlank()) {
 				if (!mrStaging) curseforge(deps, currentVersion, additionalVersions, false, curseforgeAccessToken)
-			} else {
-				//logger.lifecycle("Skipping CurseForge publishing for $name: Token or Project ID is missing.")
+			}
+
+			if (githubPublish && !githubAccessToken.isNullOrBlank()) {
+				github {
+					accessToken = githubAccessToken
+					parent(project(":").tasks.named("publishGithub"))
+				}
 			}
 		}
 	}
@@ -404,7 +495,7 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 		accessToken: String?
 	) = modrinth {
 		if (staging) apiEndpoint = "https://staging-api.modrinth.com/v2"
-		projectId = project.prop("publish.modrinth")
+		projectId = project.prop("publish.modrinth.id")
 		this.accessToken = accessToken
 		minecraftVersions.addAll(listOf(currentVersion) + additionalVersions)
 
@@ -423,7 +514,7 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 		staging: Boolean,
 		accessToken: String?
 	) = curseforge {
-		projectId = project.prop("publish.curseforge")
+		projectId = project.prop("publish.curseforge.id")
 		this.accessToken = accessToken
 		minecraftVersions.addAll(listOf(currentVersion) + additionalVersions)
 
@@ -431,5 +522,12 @@ abstract class ModPlatformPlugin @Inject constructor() : Plugin<Project> {
 		deps.optional.forEach { dep -> whenNotNull(dep.curseforge) { optional(it) } }
 		deps.incompatible.forEach { dep -> whenNotNull(dep.curseforge) { incompatible(it) } }
 		deps.embeds.forEach { dep -> whenNotNull(dep.curseforge) { embeds(it) } }
+	}
+
+	private fun configureStonecutterReplacements(stonecutter: StonecutterBuildExtension) {
+		stonecutter.replacements.string(stonecutter.eval(stonecutter.current.version, ">=1.21.11"), "!renames_1_21_11") {
+			replace("ResourceLocation", "Identifier")
+			replace("location()", "identifier()")
+		}
 	}
 }

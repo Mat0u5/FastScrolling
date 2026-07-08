@@ -26,11 +26,13 @@ neoForge {
 			gameDirectory = file("run/")
 			ideName = "NeoForge Client (${stonecutter.active?.version})"
 			programArgument("--username=Player")
+			disableIdeRun()
 		}
 		register("server") {
 			server()
 			gameDirectory = file("run/")
 			ideName = "NeoForge Server (${stonecutter.active?.version})"
+			disableIdeRun()
 		}
 	}
 
@@ -54,11 +56,4 @@ dependencies {
 
 tasks.named("createMinecraftArtifacts") {
 	dependsOn(tasks.named("stonecutterGenerate"))
-}
-
-stonecutter {
-	replacements.string(current.parsed >= "1.21.11") {
-		replace("ResourceLocation", "Identifier")
-		replace("location()", "identifier()")
-	}
 }
